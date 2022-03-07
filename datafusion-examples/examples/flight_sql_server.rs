@@ -17,12 +17,11 @@
 
 use std::sync::Arc;
 
+use arrow_flight::sql::SqlInfo;
 use arrow_flight::{FlightEndpoint, SchemaAsIpc};
 use datafusion::datasource::file_format::parquet::ParquetFormat;
 use datafusion::datasource::listing::ListingOptions;
 use datafusion::datasource::object_store::local::LocalFileSystem;
-use protobuf::well_known_types::Any;
-use protobuf::Message;
 use tonic::transport::Server;
 use tonic::{Response, Status};
 
@@ -38,10 +37,11 @@ use arrow_flight::{
         CommandGetImportedKeys, CommandGetPrimaryKeys, CommandGetSqlInfo,
         CommandGetTableTypes, CommandGetTables, CommandPreparedStatementQuery,
         CommandPreparedStatementUpdate, CommandStatementQuery, CommandStatementUpdate,
-        TicketStatementQuery,
+        ProstMessageExt, TicketStatementQuery,
     },
     FlightData, FlightDescriptor, FlightInfo, Ticket,
 };
+use prost::Message;
 
 #[derive(Clone)]
 pub struct FlightSqlServiceImpl {
@@ -73,14 +73,13 @@ impl FlightSqlService for FlightSqlServiceImpl {
             .await
             .unwrap();
 
-        let mut ticket = TicketStatementQuery::new();
-        ticket.set_statement_handle(query.query.into_bytes());
-        let bytes = Any::pack(&ticket)
-            .unwrap()
-            .write_to_bytes()
-            .map_err(|err| Status::internal(err.to_string()))?;
+        let ticket = TicketStatementQuery {
+            statement_handle: query.query.into_bytes(),
+        };
         let endpoint = FlightEndpoint {
-            ticket: Some(Ticket { ticket: bytes }),
+            ticket: Some(Ticket {
+                ticket: ticket.as_any().encode_to_vec(),
+            }),
             location: vec![],
         };
         let info = FlightInfo {
@@ -167,7 +166,7 @@ impl FlightSqlService for FlightSqlServiceImpl {
         &self,
         ticket: TicketStatementQuery,
     ) -> Result<Response<<Self as FlightService>::DoGetStream>, Status> {
-        match std::str::from_utf8(ticket.get_statement_handle()) {
+        match std::str::from_utf8(&ticket.statement_handle) {
             Ok(sql) => {
                 println!("do_get_statement: {}", sql);
 
@@ -311,6 +310,8 @@ impl FlightSqlService for FlightSqlServiceImpl {
     ) -> Result<Response<<Self as FlightService>::DoActionStream>, Status> {
         Err(Status::unimplemented("Not yet implemented"))
     }
+
+    async fn register_sql_info(&self, _id: i32, _result: &SqlInfo) {}
 }
 
 fn to_tonic_err(e: datafusion::error::DataFusionError) -> Status {
