@@ -212,7 +212,7 @@ impl FlightSqlService for FlightSqlServiceImpl {
 
                 let output = futures::stream::iter(flights);
 
-                Ok(Response::new(Box::pin(output) as Self::DoGetStream))
+                Ok(Response::new(Box::pin(output) as <Self as FlightService>::DoGetStream))
             }
             Err(e) => Err(Status::invalid_argument(format!("Invalid ticket: {:?}", e))),
         }
