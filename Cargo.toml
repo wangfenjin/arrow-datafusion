@@ -35,3 +35,8 @@ members = [
 [profile.release]
 lto = true
 codegen-units = 1
+
+# TODO: remove this before merge
+[patch.crates-io]
+arrow-flight = { path = "../arrow-rs/arrow-flight" }
+arrow = { path = "../arrow-rs/arrow" }
