@@ -17,13 +17,13 @@
 
 use std::sync::Arc;
 
-use arrow_flight::sql::SqlInfo;
+use arrow_flight::sql::{ActionCreatePreparedStatementResult, SqlInfo};
 use arrow_flight::{FlightEndpoint, SchemaAsIpc};
 use datafusion::datasource::file_format::parquet::ParquetFormat;
 use datafusion::datasource::listing::ListingOptions;
 use datafusion::datasource::object_store::local::LocalFileSystem;
 use tonic::transport::Server;
-use tonic::{Response, Status};
+use tonic::{Response, Status, Streaming};
 
 use datafusion::prelude::*;
 
@@ -212,7 +212,9 @@ impl FlightSqlService for FlightSqlServiceImpl {
 
                 let output = futures::stream::iter(flights);
 
-                Ok(Response::new(Box::pin(output) as <Self as FlightService>::DoGetStream))
+                Ok(Response::new(
+                    Box::pin(output) as <Self as FlightService>::DoGetStream
+                ))
             }
             Err(e) => Err(Status::invalid_argument(format!("Invalid ticket: {:?}", e))),
         }
@@ -282,33 +284,35 @@ impl FlightSqlService for FlightSqlServiceImpl {
     async fn do_put_statement_update(
         &self,
         _ticket: CommandStatementUpdate,
-    ) -> Result<Response<<Self as FlightService>::DoPutStream>, Status> {
+    ) -> Result<i64, Status> {
         Err(Status::unimplemented("Not yet implemented"))
     }
     async fn do_put_prepared_statement_query(
         &self,
         _query: CommandPreparedStatementQuery,
+        _request: Streaming<FlightData>,
     ) -> Result<Response<<Self as FlightService>::DoPutStream>, Status> {
         Err(Status::unimplemented("Not yet implemented"))
     }
     async fn do_put_prepared_statement_update(
         &self,
         _query: CommandPreparedStatementUpdate,
-    ) -> Result<Response<<Self as FlightService>::DoPutStream>, Status> {
+        _request: Streaming<FlightData>,
+    ) -> Result<i64, Status> {
         Err(Status::unimplemented("Not yet implemented"))
     }
     // do_action
     async fn do_action_create_prepared_statement(
         &self,
         _query: ActionCreatePreparedStatementRequest,
-    ) -> Result<Response<<Self as FlightService>::DoActionStream>, Status> {
+    ) -> Result<ActionCreatePreparedStatementResult, Status> {
         Err(Status::unimplemented("Not yet implemented"))
     }
     async fn do_action_close_prepared_statement(
         &self,
         _query: ActionClosePreparedStatementRequest,
-    ) -> Result<Response<<Self as FlightService>::DoActionStream>, Status> {
-        Err(Status::unimplemented("Not yet implemented"))
+    ) {
+        unimplemented!("Not yet implemented")
     }
 
     async fn register_sql_info(&self, _id: i32, _result: &SqlInfo) {}
